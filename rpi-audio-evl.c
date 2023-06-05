@@ -46,6 +46,7 @@ MODULE_LICENSE("GPL");
 #define PLATFORM_TYPE					NATIVE_AUDIO
 #define USB_AUDIO_TYPE			NONE
 #define SUPPORTED_BUFFER_SIZES 16, 32, 64, 128
+#define DEFAULT_IRQ_AFFINITY					0
 
 static uint audio_ver_maj = AUDIO_EVL_VERSION_MAJ;
 static uint audio_ver_min = AUDIO_EVL_VERSION_MIN;
@@ -66,6 +67,8 @@ static int session_under_runs = 0;
 module_param(session_under_runs, int, 0644);
 static uint kernel_interrupts = 0;
 module_param(kernel_interrupts, uint, 0444);
+static uint audio_irq_affinity = DEFAULT_IRQ_AFFINITY;
+module_param(audio_irq_affinity, uint, 0644);
 
 static const int supported_buffer_sizes[] = {SUPPORTED_BUFFER_SIZES};
 static uint num_codec_channels = DEFAULT_AUDIO_NUM_CODEC_CHANNELS;
@@ -149,6 +152,12 @@ static ssize_t usb_audio_type_show(struct class *cls,
 	return sprintf(buf, "%d\n", usb_audio_type);
 }
 
+static ssize_t audio_irq_affinity_show(struct class *cls,
+				      struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", audio_irq_affinity);
+}
+
 static CLASS_ATTR_RW(audio_buffer_size);
 static CLASS_ATTR_RO(audio_hat);
 static CLASS_ATTR_RO(audio_sampling_rate);
@@ -159,6 +168,7 @@ static CLASS_ATTR_RO(audio_input_channels);
 static CLASS_ATTR_RO(audio_output_channels);
 static CLASS_ATTR_RO(platform_type);
 static CLASS_ATTR_RO(usb_audio_type);
+static CLASS_ATTR_RO(audio_irq_affinity);
 
 static struct attribute *audio_evl_class_attrs[] = {
 	&class_attr_audio_buffer_size.attr,
@@ -171,6 +181,7 @@ static struct attribute *audio_evl_class_attrs[] = {
 	&class_attr_audio_output_channels.attr,
 	&class_attr_platform_type.attr,
 	&class_attr_usb_audio_type.attr,
+	&class_attr_audio_irq_affinity.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(audio_evl_class);
