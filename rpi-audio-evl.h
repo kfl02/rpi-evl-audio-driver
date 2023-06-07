@@ -14,7 +14,7 @@
 #define DEVICE_NAME		"audio_evl"
 #define RTAUDIO_PROFILE_VER	1
 #define AUDIO_EVL_VERSION_MAJ	1
-#define AUDIO_EVL_VERSION_MIN	0
+#define AUDIO_EVL_VERSION_MIN	1
 #define AUDIO_EVL_VERSION_VER	0
 
 #define AUDIO_IOC_MAGIC		'r'
