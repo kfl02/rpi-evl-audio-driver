@@ -23,7 +23,8 @@ static unsigned short i2c_probe_addr[] = {
 	0x4c,
 	0x4d,
 	0x4e,
-	0x4f
+	0x4f,
+	I2C_CLIENT_END
 };
 
 static int pcm5122_reg_write(struct i2c_client *dev,
