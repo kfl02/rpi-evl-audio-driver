@@ -1,10 +1,10 @@
 # Audio EVL driver
 
-Xenomai real-time audio driver for TI PCM3168A codec on the [Elk Pi hat](https://elk.audio/dev-kit/).
+EVL based real-time audio driver for TI PCM5122/PCM1863 codec for Elk Audio OS..
 
 ## Building
 
-Have the kernel sources and an ARMv7 cross-compilation toolchain on your host machine, then do:
+Have the kernel sources and an ARMv8 cross-compilation toolchain on your host machine, then do:
 
 (https://github.com/elk-audio/elkpi-sdk) available on the host machine, then:
 
@@ -24,20 +24,12 @@ $ export KERNEL_PATH=<path to kernel source in your bitbake tmp build files>
 $ make
 ```
 
-By default CV gates support is enabled with the definition `BCM2835_I2S_CVGATES_SUPPORT`.
-It is currently set in the `Makefile` script with this line:
-
-```
-ccflags-y += -DBCM2835_i2S_CVGATES_SUPPORT
-```
-
-Just remove the line if you want to compile without CV gate support.
-
 ## Usage Example
 To load the driver as an out-of-tree module, run as sudo:
 
 ```
-$ insmod pcm3168a-elk.ko
+$ insmod pcm5122-elk.ko
+$ insmod pcm1863-elk.ko
 $ insmod bcm2835-i2s-elk.ko
 $ insmod audio_evl.ko audio_buffer_size=<BUFFER SIZE>
 ```
@@ -49,4 +41,5 @@ If the modules are installed already as part of the Kernel you can just do inste
 ```
 
 ---
-Copyright 2021 Modern Ancient Instruments Networked AB, dba Elk, Stockholm
+Copyright 2017-2023 Elk Audio AB, Stockholm, Sweden
+
