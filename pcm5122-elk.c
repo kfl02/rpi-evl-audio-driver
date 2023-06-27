@@ -17,10 +17,14 @@
 #define PCM5122_SCLK_RATE 	24576000
 #define PCM5122_BCLK_RATE	3072000
 
-static struct i2c_board_info i2c_pcm5122_board_info[] =  {
-	{
-		I2C_BOARD_INFO("pcm-5122", 0x4d),
-	}
+#define I2C_DEV_TYPE		"pcm-5122"
+
+static unsigned short i2c_probe_addr[] = {
+	0x4c,
+	0x4d,
+	0x4e,
+	0x4f,
+	I2C_CLIENT_END
 };
 
 static int pcm5122_reg_write(struct i2c_client *dev,
@@ -138,13 +142,17 @@ int pcm5122_codec_init(int mode, int sampling_freq, bool enable_low_latency)
 {
 	struct i2c_client *client = NULL;
 	struct i2c_adapter *adapter = NULL;
+	struct i2c_board_info i2c_info;
+
 	adapter = i2c_get_adapter(PCM5122_I2C_BUS_NUM);
 	if (!adapter) {
 		printk(KERN_ERR "pcm5122: Failed to get i2c adapter\n");
 		return -1;
 	}
 
-	client = i2c_new_client_device(adapter, i2c_pcm5122_board_info);
+	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
+	strscpy(i2c_info.type, I2C_DEV_TYPE, sizeof(i2c_info.type));
+	client = i2c_new_scanned_device(adapter, &i2c_info, i2c_probe_addr, NULL);
 	if (!client) {
 		printk(KERN_ERR "pcm5122: Failed to get i2c client 5122\n");
 		return -1;
