@@ -2,9 +2,9 @@
 /*
  * @brief I2S module of the EVL audio driver.
  *	  A lot of stuff is based on the mainline I2S module by Florian Meier
- * @copyright 2017-2019 Modern Ancient Instruments Networked AB, dba Elk,
- * Stockholm
+ * @copyright 2017-2024 ELK Audio AB, Stockholm
  */
+
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/slab.h>

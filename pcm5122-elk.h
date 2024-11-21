@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * @copyright 2017-2019 Modern Ancient Instruments Networked AB, dba Elk,
- * Stockholm
+ * @copyright 2017-2024 ELK Audio AB, Stockholm
  */
+
 #ifndef PCM5122_ELK_H
 #define PCM5122_ELK_H
 

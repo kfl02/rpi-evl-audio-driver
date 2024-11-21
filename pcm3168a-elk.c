@@ -3,9 +3,9 @@
  * @brief The PCM168a codec driver for ELK  PI. A lot of stuff is hardcoded for
  *	now, idea is to make it runtime configurable ideally. This module is
  *	based on the mainline pcm3168a driver by Damien Horsley.
- * @copyright 2017-2019 Modern Ancient Instruments Networked AB, dba Elk,
- * Stockholm
+ * @copyright 2017-2024 ELK Audio AB, Stockholm
  */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>

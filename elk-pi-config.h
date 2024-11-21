@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
 * @brief config file to keep board specific configs (e.g. num of CV gates)
-* @copyright 2017-2019 Modern Ancient Instruments Networked AB, dba Elk,
-* Stockholm
+* @copyright 2017-2024 ELK Audio AB, Stockholm
 */
+
 #ifndef ELK_PI_CONFIG_H
 #define ELK_PI_CONFIG_H
 

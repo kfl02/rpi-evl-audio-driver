@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * @brief Initial version of real-time audio driver for rpi
- * @copyright 2017-2019 Modern Ancient Instruments Networked AB, dba Elk,
- * Stockholm
+ * @copyright 2017-2024 ELK Audio AB, Stockholm
  */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/printk.h>

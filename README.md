@@ -41,5 +41,5 @@ If the modules are installed already as part of the Kernel you can just do inste
 ```
 
 ---
-Copyright 2017-2023 Elk Audio AB, Stockholm, Sweden
+Copyright 2017-2024 ELK Audio AB, Stockholm, Sweden
 
