@@ -36,17 +36,17 @@ MODULE_AUTHOR("Marco Del Fiasco (marco@elk.audio)");
 MODULE_DESCRIPTION("EVL audio driver for RPi");
 MODULE_LICENSE("GPL");
 
-#define DEFAULT_AUDIO_SAMPLING_RATE			48000
-#define DEFAULT_AUDIO_NUM_INPUT_CHANNELS		8
-#define DEFAULT_AUDIO_NUM_OUTPUT_CHANNELS		8
-#define DEFAULT_AUDIO_NUM_CODEC_CHANNELS		8
-#define DEFAULT_AUDIO_N_FRAMES_PER_BUFFER		64
-#define DEFAULT_AUDIO_CODEC_FORMAT			INT24_LJ
-#define DEFAULT_AUDIO_LOW_LATENCY_VAL			1
-#define PLATFORM_TYPE					NATIVE_AUDIO
-#define USB_AUDIO_TYPE			NONE
+#define DEFAULT_AUDIO_SAMPLING_RATE 48000
+#define DEFAULT_AUDIO_NUM_INPUT_CHANNELS 8
+#define DEFAULT_AUDIO_NUM_OUTPUT_CHANNELS 8
+#define DEFAULT_AUDIO_NUM_CODEC_CHANNELS 8
+#define DEFAULT_AUDIO_N_FRAMES_PER_BUFFER 64
+#define DEFAULT_AUDIO_CODEC_FORMAT INT24_LJ
+#define DEFAULT_AUDIO_LOW_LATENCY_VAL 1
+#define PLATFORM_TYPE NATIVE_AUDIO
+#define USB_AUDIO_TYPE NONE
 #define SUPPORTED_BUFFER_SIZES 16, 32, 64, 128
-#define DEFAULT_IRQ_AFFINITY					0
+#define DEFAULT_IRQ_AFFINITY 0
 
 static uint audio_ver_maj = AUDIO_EVL_VERSION_MAJ;
 static uint audio_ver_min = AUDIO_EVL_VERSION_MIN;
@@ -70,27 +70,30 @@ module_param(kernel_interrupts, uint, 0444);
 static uint audio_irq_affinity = DEFAULT_IRQ_AFFINITY;
 module_param(audio_irq_affinity, uint, 0644);
 
-static const int supported_buffer_sizes[] = {SUPPORTED_BUFFER_SIZES};
+static const int supported_buffer_sizes[] = { SUPPORTED_BUFFER_SIZES };
 static uint num_codec_channels = DEFAULT_AUDIO_NUM_CODEC_CHANNELS;
 static uint audio_format = DEFAULT_AUDIO_CODEC_FORMAT;
 static unsigned long user_proc_completions = 0;
 
 struct audio_dev_context {
 	struct audio_evl_dev *i2s_dev;
-	struct audio_channel_info_data* audio_input_info;
-	struct audio_channel_info_data* audio_output_info;
-	struct evl_file	efile;
+	struct audio_channel_info_data *audio_input_info;
+	struct audio_channel_info_data *audio_output_info;
+	struct evl_file efile;
 	uint64_t user_proc_calls;
 };
 
 static ssize_t audio_buffer_size_show(const struct class *cls,
-                                      const struct class_attribute *attr, char *buf) {
-  return sprintf(buf, "%d\n", audio_buffer_size);
+				      const struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", audio_buffer_size);
 }
 
 static ssize_t audio_buffer_size_store(const struct class *class,
-                                       const struct class_attribute *attr,
-				       const char *buf, size_t size) {
+				       const struct class_attribute *attr,
+				       const char *buf, size_t size)
+{
 	unsigned long bs;
 	ssize_t result;
 	result = sscanf(buf, "%lu", &bs);
@@ -101,63 +104,66 @@ static ssize_t audio_buffer_size_store(const struct class *class,
 }
 
 static ssize_t audio_hat_show(const struct class *cls,
-                              const struct class_attribute *attr,
-                              char *buf) {
-  return sprintf(buf, "%s\n", audio_hat);
+			      const struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", audio_hat);
 }
 
 static ssize_t audio_sampling_rate_show(const struct class *cls,
-                                        const struct class_attribute *attr,
-                                        char *buf) {
-  return sprintf(buf, "%du\n", audio_sampling_rate);
+					const struct class_attribute *attr,
+					char *buf)
+{
+	return sprintf(buf, "%du\n", audio_sampling_rate);
 }
 
 static ssize_t audio_ver_maj_show(const struct class *cls,
-                                  const struct class_attribute *attr,
-                                  char *buf) {
-  return sprintf(buf, "%d\n", audio_ver_maj);
+				  const struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", audio_ver_maj);
 }
 
 static ssize_t audio_ver_min_show(const struct class *cls,
-                                  const struct class_attribute *attr,
-                                  char *buf) {
-  return sprintf(buf, "%d\n", audio_ver_min);
+				  const struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", audio_ver_min);
 }
 
 static ssize_t audio_ver_rev_show(const struct class *cls,
-                                  const struct class_attribute *attr,
-                                  char *buf) {
-  return sprintf(buf, "%d\n", audio_ver_rev);
+				  const struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", audio_ver_rev);
 }
 
 static ssize_t audio_input_channels_show(const struct class *cls,
-                                         const struct class_attribute *attr,
-                                         char *buf) {
-  return sprintf(buf, "%d\n", audio_input_channels);
+					 const struct class_attribute *attr,
+					 char *buf)
+{
+	return sprintf(buf, "%d\n", audio_input_channels);
 }
 
 static ssize_t audio_output_channels_show(const struct class *cls,
-                                          const struct class_attribute *attr,
-                                          char *buf) {
-  return sprintf(buf, "%d\n", audio_output_channels);
+					  const struct class_attribute *attr,
+					  char *buf)
+{
+	return sprintf(buf, "%d\n", audio_output_channels);
 }
 
 static ssize_t platform_type_show(const struct class *cls,
-                                  const struct class_attribute *attr,
-                                  char *buf) {
-  return sprintf(buf, "%d\n", platform_type);
+				  const struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", platform_type);
 }
 
 static ssize_t usb_audio_type_show(const struct class *cls,
-                                   const struct class_attribute *attr,
-                                   char *buf)
+				   const struct class_attribute *attr,
+				   char *buf)
 {
 	return sprintf(buf, "%d\n", usb_audio_type);
 }
 
 static ssize_t audio_irq_affinity_show(const struct class *cls,
-                                       const struct class_attribute *attr,
-                                       char *buf)
+				       const struct class_attribute *attr,
+				       char *buf)
 {
 	return sprintf(buf, "%d\n", audio_irq_affinity);
 }
@@ -191,8 +197,8 @@ static struct attribute *audio_evl_class_attrs[] = {
 ATTRIBUTE_GROUPS(audio_evl_class);
 
 struct class audio_evl_class = {
-    .name = "audio_evl",
-    .class_groups = audio_evl_class_groups,
+	.name = "audio_evl",
+	.class_groups = audio_evl_class_groups,
 };
 
 static int audio_driver_open(struct inode *inode, struct file *filp)
@@ -205,18 +211,22 @@ static int audio_driver_open(struct inode *inode, struct file *filp)
 	if (dev_context == NULL)
 		return -ENOMEM;
 
-	dev_context->audio_input_info = kcalloc(audio_input_channels,
-				sizeof(struct audio_channel_info_data), GFP_KERNEL);
+	dev_context->audio_input_info =
+		kcalloc(audio_input_channels,
+			sizeof(struct audio_channel_info_data), GFP_KERNEL);
 	if (!dev_context->audio_input_info) {
-		printk(KERN_ERR "audio_evl: Failed to allocate input chan info\n");
+		printk(KERN_ERR
+		       "audio_evl: Failed to allocate input chan info\n");
 		ret = -ENOMEM;
 		goto fail_in_ch;
 	}
 
-	dev_context->audio_output_info = kcalloc(audio_output_channels,
-				sizeof(struct audio_channel_info_data), GFP_KERNEL);	
+	dev_context->audio_output_info =
+		kcalloc(audio_output_channels,
+			sizeof(struct audio_channel_info_data), GFP_KERNEL);
 	if (!dev_context->audio_output_info) {
-		printk(KERN_ERR "audio_evl: Failed to allocate output chan info\n");
+		printk(KERN_ERR
+		       "audio_evl: Failed to allocate output chan info\n");
 		ret = -ENOMEM;
 		goto fail_out_ch;
 	}
@@ -231,9 +241,7 @@ static int audio_driver_open(struct inode *inode, struct file *filp)
 		audio_input_info->direction = INPUT_DIRECTION;
 		audio_input_info->sample_format = audio_format;
 		snprintf((char *)audio_input_info->channel_name,
-				AUDIO_CHANNEL_NAME_SIZE - 1,
-				"IN-%d",
-				chan_num);
+			 AUDIO_CHANNEL_NAME_SIZE - 1, "IN-%d", chan_num);
 		audio_input_info->start_offset_in_words = chan_num;
 		audio_input_info->stride_in_words = num_codec_channels;
 	}
@@ -247,9 +255,7 @@ static int audio_driver_open(struct inode *inode, struct file *filp)
 		audio_output_info->direction = OUTPUT_DIRECTION;
 		audio_output_info->sample_format = audio_format;
 		snprintf((char *)audio_output_info->channel_name,
-				AUDIO_CHANNEL_NAME_SIZE - 1,
-				"IN-%d",
-				chan_num);
+			 AUDIO_CHANNEL_NAME_SIZE - 1, "IN-%d", chan_num);
 		audio_output_info->start_offset_in_words = chan_num;
 		audio_output_info->stride_in_words = num_codec_channels;
 	}
@@ -287,7 +293,7 @@ fail_in_ch:
 	return ret;
 }
 
-static int  audio_driver_release(struct inode *inode, struct file *filp)
+static int audio_driver_release(struct inode *inode, struct file *filp)
 {
 	int i;
 	struct audio_dev_context *dev_context = filp->private_data;
@@ -296,7 +302,7 @@ static int  audio_driver_release(struct inode *inode, struct file *filp)
 
 	evl_destroy_flag(&dev_context->i2s_dev->event_flag);
 	if (dev_context->i2s_dev->wait_flag) {
-		for (i = 0; i < i2s_buffer->buffer_len/4; i++) {
+		for (i = 0; i < i2s_buffer->buffer_len / 4; i++) {
 			tx[i] = 0;
 		}
 		dev_context->i2s_dev->wait_flag = 0;
@@ -318,10 +324,9 @@ static int audio_driver_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct audio_evl_buffers *i2s_buffer = dev_context->i2s_dev->buffer;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	return dma_mmap_coherent(dev_context->i2s_dev->dma_rx->device->dev,
-		vma,
-		i2s_buffer->rx_buf, i2s_buffer->rx_phys_addr,
-		RESERVED_BUFFER_SIZE_IN_PAGES * PAGE_SIZE);
+	return dma_mmap_coherent(dev_context->i2s_dev->dma_rx->device->dev, vma,
+				 i2s_buffer->rx_buf, i2s_buffer->rx_phys_addr,
+				 RESERVED_BUFFER_SIZE_IN_PAGES * PAGE_SIZE);
 }
 
 static long audio_driver_oob_ioctl(struct file *filp, unsigned int cmd,
@@ -345,7 +350,7 @@ static long audio_driver_oob_ioctl(struct file *filp, unsigned int cmd,
 					  sizeof(buffer_idx));
 		if (result) {
 			return -EFAULT;
- 		}
+		}
 		kernel_interrupts = dev->kinterrupts;
 		user_proc_completions = kernel_interrupts;
 		return result;
@@ -358,36 +363,39 @@ static long audio_driver_oob_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	default:
 		printk(KERN_WARNING "audio_evl : audio_ioctl_rt: invalid value"
-							" %d\n", cmd);
+				    " %d\n",
+		       cmd);
 		return -EINVAL;
 	}
 	return result;
 }
 
 static long audio_driver_ioctl(struct file *filp, unsigned int cmd,
-			 unsigned long arg)
+			       unsigned long arg)
 {
 	struct audio_dev_context *dev_context = filp->private_data;
 	int result = 0;
 
-	switch(cmd) {
+	switch (cmd) {
 	case AUDIO_PROC_START:
-		bcm2835_i2s_start_stop(dev_context->i2s_dev, BCM2835_I2S_START_CMD);
+		bcm2835_i2s_start_stop(dev_context->i2s_dev,
+				       BCM2835_I2S_START_CMD);
 		break;
 	case AUDIO_PROC_STOP:
-		bcm2835_i2s_start_stop(dev_context->i2s_dev, BCM2835_I2S_STOP_CMD);
+		bcm2835_i2s_start_stop(dev_context->i2s_dev,
+				       BCM2835_I2S_STOP_CMD);
 		break;
 	case AUDIO_GET_INPUT_CHAN_INFO:
 		if (dev_context->audio_input_info == NULL) {
 			return -ENOENT;
 		}
-		result = raw_copy_to_user((void *)arg, dev_context->audio_input_info,
-					sizeof(struct audio_channel_info_data) *
-					audio_input_channels);
+		result = raw_copy_to_user(
+			(void *)arg, dev_context->audio_input_info,
+			sizeof(struct audio_channel_info_data) *
+				audio_input_channels);
 		if (result < 0) {
-			printk(	KERN_INFO
-				"audio_evl: AUDIO_GET_INPUT_CHAN_INFO"
-				" failed to copy data to user\n");
+			printk(KERN_INFO "audio_evl: AUDIO_GET_INPUT_CHAN_INFO"
+					 " failed to copy data to user\n");
 			return result;
 		}
 		break;
@@ -395,20 +403,21 @@ static long audio_driver_ioctl(struct file *filp, unsigned int cmd,
 		if (dev_context->audio_output_info == NULL) {
 			return -ENOENT;
 		}
-		result = raw_copy_to_user((void *)arg, dev_context->audio_output_info,
-					sizeof(struct audio_channel_info_data) *
-					audio_output_channels);
+		result = raw_copy_to_user(
+			(void *)arg, dev_context->audio_output_info,
+			sizeof(struct audio_channel_info_data) *
+				audio_output_channels);
 		if (result < 0) {
-			printk(	KERN_INFO
-				"audio_evl: AUDIO_GET_OUTPUT_CHAN_INFO"
-				" failed to copy data to user\n");
+			printk(KERN_INFO "audio_evl: AUDIO_GET_OUTPUT_CHAN_INFO"
+					 " failed to copy data to user\n");
 			return result;
 		}
 		break;
 	default:
-		printk(	KERN_WARNING
-			"audio_evl : audio_driver_ioctl: invalid value"
-			" %d\n", cmd);
+		printk(KERN_WARNING
+		       "audio_evl : audio_driver_ioctl: invalid value"
+		       " %d\n",
+		       cmd);
 		return -EINVAL;
 	}
 
@@ -416,11 +425,11 @@ static long audio_driver_ioctl(struct file *filp, unsigned int cmd,
 }
 
 static const struct file_operations audio_driver_fops = {
-	.open		= audio_driver_open,
-	.release	= audio_driver_release,
-	.unlocked_ioctl	= audio_driver_ioctl,
-	.mmap		= audio_driver_mmap,
-	.oob_ioctl	= audio_driver_oob_ioctl,
+	.open = audio_driver_open,
+	.release = audio_driver_release,
+	.unlocked_ioctl = audio_driver_ioctl,
+	.mmap = audio_driver_mmap,
+	.oob_ioctl = audio_driver_oob_ioctl,
 };
 
 static dev_t rt_audio_devt;
@@ -438,8 +447,8 @@ static int __init audio_evl_driver_init(void)
 	if (!strcmp(audio_hat, "hifi-berry")) {
 		printk(KERN_INFO "audio_evl: hifi-berry hat\n");
 		if (pcm5122_codec_init(HIFI_BERRY_DAC_MODE,
-				HIFI_BERRY_SAMPLING_RATE,
-				audio_enable_low_latency)) {
+				       HIFI_BERRY_SAMPLING_RATE,
+				       audio_enable_low_latency)) {
 			printk(KERN_ERR "audio_evl: codec init failed\n");
 			return -1;
 		}
@@ -455,8 +464,8 @@ static int __init audio_evl_driver_init(void)
 			return -1;
 		}
 		if (pcm5122_codec_init(HIFI_BERRY_PRO_DAC_MODE,
-					HIFI_BERRY_PRO_SAMPLING_RATE,
-					audio_enable_low_latency)) {
+				       HIFI_BERRY_PRO_SAMPLING_RATE,
+				       audio_enable_low_latency)) {
 			printk(KERN_ERR "audio_evl: pcm5122 codec failed\n");
 			return -1;
 		}
@@ -493,15 +502,15 @@ static int __init audio_evl_driver_init(void)
 
 	cdev_init(&rt_audio_cdev, &audio_driver_fops);
 	ret = cdev_add(&rt_audio_cdev, rt_audio_devt, 1);
- 	if (ret) {
+	if (ret) {
 		goto fail_add;
 	}
-	dev = device_create(&audio_evl_class, NULL, rt_audio_devt,
-				NULL, "audio_evl");
+	dev = device_create(&audio_evl_class, NULL, rt_audio_devt, NULL,
+			    "audio_evl");
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
 		goto fail_dev;
- 	}
+	}
 	printk(KERN_INFO "audio_evl: buffer size = %d\n", audio_buffer_size);
 	printk(KERN_INFO "audio_evl: v%d.%d.%d - driver initialized\n",
 	       AUDIO_EVL_VERSION_MAJ, AUDIO_EVL_VERSION_MIN,
@@ -531,5 +540,4 @@ static void __exit audio_evl_driver_exit(void)
 	class_unregister(&audio_evl_class);
 }
 
-module_init(audio_evl_driver_init)
-module_exit(audio_evl_driver_exit)
+module_init(audio_evl_driver_init) module_exit(audio_evl_driver_exit)

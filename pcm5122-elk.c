@@ -13,22 +13,17 @@
 
 #include "pcm5122-elk.h"
 
-#define PCM5122_I2C_BUS_NUM 	1
-#define PCM5122_SCLK_RATE 	24576000
-#define PCM5122_BCLK_RATE	3072000
+#define PCM5122_I2C_BUS_NUM 1
+#define PCM5122_SCLK_RATE 24576000
+#define PCM5122_BCLK_RATE 3072000
 
-#define I2C_DEV_TYPE		"pcm-5122"
+#define I2C_DEV_TYPE "pcm-5122"
 
-static unsigned short i2c_probe_addr[] = {
-	0x4c,
-	0x4d,
-	0x4e,
-	0x4f,
-	I2C_CLIENT_END
-};
+static unsigned short i2c_probe_addr[] = { 0x4c, 0x4d, 0x4e, 0x4f,
+					   I2C_CLIENT_END };
 
-static int pcm5122_reg_write(struct i2c_client *dev,
-				unsigned int reg, unsigned int val)
+static int pcm5122_reg_write(struct i2c_client *dev, unsigned int reg,
+			     unsigned int val)
 {
 	int ret;
 	char cmd[2];
@@ -42,16 +37,16 @@ static int pcm5122_reg_write(struct i2c_client *dev,
 	return 0;
 }
 
-static int pcm5122_config_codec(struct i2c_client *dev,
-				int mode, int sampling_freq, bool enable_low_latency)
+static int pcm5122_config_codec(struct i2c_client *dev, int mode,
+				int sampling_freq, bool enable_low_latency)
 {
 	int ret = -1;
 	printk("pcm5122_config_codec: mode = %d\n", mode);
 
 	if (sampling_freq != 48000) {
 		printk(KERN_ERR "pcm5122: Unsupported sampling freq %d",
-			sampling_freq);
-			return ret;
+		       sampling_freq);
+		return ret;
 	}
 
 	/* select page 0*/
@@ -67,18 +62,19 @@ static int pcm5122_config_codec(struct i2c_client *dev,
 		return ret;
 	}
 	/* reset regs */
-	if (pcm5122_reg_write(dev, PCM512x_RESET, PCM512x_RSTM | PCM512x_RSTR)) {
+	if (pcm5122_reg_write(dev, PCM512x_RESET,
+			      PCM512x_RSTM | PCM512x_RSTR)) {
 		return ret;
 	}
 	/* I2S format 32-bit SE */
-	if (pcm5122_reg_write(dev, PCM512x_I2S_1, PCM512x_AFMT_I2S |
-						PCM512x_ALEN_32)) {
+	if (pcm5122_reg_write(dev, PCM512x_I2S_1,
+			      PCM512x_AFMT_I2S | PCM512x_ALEN_32)) {
 		return ret;
 	}
 
 	if (enable_low_latency) {
 		if (pcm5122_reg_write(dev, PCM512x_DSP_PROGRAM,
-			PCM512x_LOW_LATENCY_IIR)) {
+				      PCM512x_LOW_LATENCY_IIR)) {
 			return ret;
 		}
 	}
@@ -97,23 +93,24 @@ static int pcm5122_config_codec(struct i2c_client *dev,
 			return ret;
 		}
 
-		if (pcm5122_reg_write(dev, PCM512x_BCLK_LRCLK_CFG, PCM512x_LRKO |
-					PCM512x_BCKO)) {
+		if (pcm5122_reg_write(dev, PCM512x_BCLK_LRCLK_CFG,
+				      PCM512x_LRKO | PCM512x_BCKO)) {
 			return ret;
 		}
 		/* set the bit clk divider from sclk*/
 		if (pcm5122_reg_write(dev, PCM512x_MASTER_CLKDIV_1,
-		PCM5122_SCLK_RATE/PCM5122_BCLK_RATE - 1)) {
+				      PCM5122_SCLK_RATE / PCM5122_BCLK_RATE -
+					      1)) {
 			return ret;
 		}
 		/* set the LR clk divider from bit clk*/
 		if (pcm5122_reg_write(dev, PCM512x_MASTER_CLKDIV_2,
-		PCM5122_BCLK_RATE/sampling_freq - 1)) {
+				      PCM5122_BCLK_RATE / sampling_freq - 1)) {
 			return ret;
 		}
 
-		if (pcm5122_reg_write(dev, PCM512x_MASTER_MODE, PCM512x_RLRK |
-			PCM512x_RBCK)) {
+		if (pcm5122_reg_write(dev, PCM512x_MASTER_MODE,
+				      PCM512x_RLRK | PCM512x_RBCK)) {
 			return ret;
 		}
 	} else {
@@ -126,14 +123,14 @@ static int pcm5122_config_codec(struct i2c_client *dev,
 		}
 	}
 
-	if (pcm5122_reg_write(dev, PCM512x_ERROR_DETECT, PCM512x_IDSK |
-				PCM512x_IDBK | PCM512x_IDSK |
-		PCM512x_IDCH)) {
-			return ret;
+	if (pcm5122_reg_write(dev, PCM512x_ERROR_DETECT,
+			      PCM512x_IDSK | PCM512x_IDBK | PCM512x_IDSK |
+				      PCM512x_IDCH)) {
+		return ret;
 	}
 	/* get out of standby mode */
 	if (pcm5122_reg_write(dev, PCM512x_POWER, 0x00)) {
-			return ret;
+		return ret;
 	}
 	return 0;
 }
@@ -152,13 +149,15 @@ int pcm5122_codec_init(int mode, int sampling_freq, bool enable_low_latency)
 
 	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
 	strscpy(i2c_info.type, I2C_DEV_TYPE, sizeof(i2c_info.type));
-	client = i2c_new_scanned_device(adapter, &i2c_info, i2c_probe_addr, NULL);
+	client = i2c_new_scanned_device(adapter, &i2c_info, i2c_probe_addr,
+					NULL);
 	if (!client) {
 		printk(KERN_ERR "pcm5122: Failed to get i2c client 5122\n");
 		return -1;
 	}
 
-	if (pcm5122_config_codec(client, mode, sampling_freq, enable_low_latency)) {
+	if (pcm5122_config_codec(client, mode, sampling_freq,
+				 enable_low_latency)) {
 		printk(KERN_ERR "pcm5122-elk: config_codec failed\n");
 		return -1;
 	}
@@ -186,9 +185,8 @@ void pcm5122_exit(void)
 	printk(KERN_INFO "pcm5122-elk: module exit\n");
 }
 
-module_init(pcm5122_init)
-module_exit(pcm5122_exit)
+module_init(pcm5122_init) module_exit(pcm5122_exit)
 
-MODULE_DESCRIPTION("PCM5122 I2C codec driver for ELK Pi");
+	MODULE_DESCRIPTION("PCM5122 I2C codec driver for ELK Pi");
 MODULE_AUTHOR("Nitin Kulkarni (nitin@elk.audio)");
 MODULE_LICENSE("GPL");
