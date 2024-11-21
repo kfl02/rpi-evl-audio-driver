@@ -83,14 +83,14 @@ struct audio_dev_context {
 	uint64_t user_proc_calls;
 };
 
-static ssize_t audio_buffer_size_show(struct class *cls,
-                                      struct class_attribute *attr, char *buf) {
+static ssize_t audio_buffer_size_show(const struct class *cls,
+                                      const struct class_attribute *attr, char *buf) {
   return sprintf(buf, "%d\n", audio_buffer_size);
 }
 
-static ssize_t audio_buffer_size_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t size)
-{
+static ssize_t audio_buffer_size_store(const struct class *class,
+                                       const struct class_attribute *attr,
+				       const char *buf, size_t size) {
 	unsigned long bs;
 	ssize_t result;
 	result = sscanf(buf, "%lu", &bs);
@@ -100,60 +100,64 @@ static ssize_t audio_buffer_size_store(struct class *class,
 	return size;
 }
 
-static ssize_t audio_hat_show(struct class *cls, struct class_attribute *attr,
+static ssize_t audio_hat_show(const struct class *cls,
+                              const struct class_attribute *attr,
                               char *buf) {
   return sprintf(buf, "%s\n", audio_hat);
 }
 
-static ssize_t audio_sampling_rate_show(struct class *cls,
-                                        struct class_attribute *attr,
+static ssize_t audio_sampling_rate_show(const struct class *cls,
+                                        const struct class_attribute *attr,
                                         char *buf) {
   return sprintf(buf, "%du\n", audio_sampling_rate);
 }
 
-static ssize_t audio_ver_maj_show(struct class *cls,
-                                       struct class_attribute *attr,
-                                       char *buf) {
+static ssize_t audio_ver_maj_show(const struct class *cls,
+                                  const struct class_attribute *attr,
+                                  char *buf) {
   return sprintf(buf, "%d\n", audio_ver_maj);
 }
 
-static ssize_t audio_ver_min_show(struct class *cls,
-                                       struct class_attribute *attr,
-                                       char *buf) {
+static ssize_t audio_ver_min_show(const struct class *cls,
+                                  const struct class_attribute *attr,
+                                  char *buf) {
   return sprintf(buf, "%d\n", audio_ver_min);
 }
 
-static ssize_t audio_ver_rev_show(struct class *cls,
-                                       struct class_attribute *attr,
-                                       char *buf) {
+static ssize_t audio_ver_rev_show(const struct class *cls,
+                                  const struct class_attribute *attr,
+                                  char *buf) {
   return sprintf(buf, "%d\n", audio_ver_rev);
 }
 
-static ssize_t audio_input_channels_show(struct class *cls,
-                                         struct class_attribute *attr,
+static ssize_t audio_input_channels_show(const struct class *cls,
+                                         const struct class_attribute *attr,
                                          char *buf) {
   return sprintf(buf, "%d\n", audio_input_channels);
 }
 
-static ssize_t audio_output_channels_show(struct class *cls,
-                                          struct class_attribute *attr,
+static ssize_t audio_output_channels_show(const struct class *cls,
+                                          const struct class_attribute *attr,
                                           char *buf) {
   return sprintf(buf, "%d\n", audio_output_channels);
 }
 
-static ssize_t platform_type_show(struct class *cls,
-                                  struct class_attribute *attr, char *buf) {
+static ssize_t platform_type_show(const struct class *cls,
+                                  const struct class_attribute *attr,
+                                  char *buf) {
   return sprintf(buf, "%d\n", platform_type);
 }
 
-static ssize_t usb_audio_type_show(struct class *cls,
-				struct class_attribute *attr, char *buf)
+static ssize_t usb_audio_type_show(const struct class *cls,
+                                   const struct class_attribute *attr,
+                                   char *buf)
 {
 	return sprintf(buf, "%d\n", usb_audio_type);
 }
 
-static ssize_t audio_irq_affinity_show(struct class *cls,
-				      struct class_attribute *attr, char *buf)
+static ssize_t audio_irq_affinity_show(const struct class *cls,
+                                       const struct class_attribute *attr,
+                                       char *buf)
 {
 	return sprintf(buf, "%d\n", audio_irq_affinity);
 }
