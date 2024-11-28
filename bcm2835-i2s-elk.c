@@ -548,15 +548,15 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 {
 	struct audio_evl_dev *audio_dev;
 	int ret = 0;
-	struct resource *mem_resource;
+	struct resource *res;
 	void __iomem *base;
-	const __be32 *addr;
-	dma_addr_t dma_base;
 	struct audio_evl_buffers *audio_buffer;
 
 	audio_dev = devm_kzalloc(&pdev->dev, sizeof(*audio_dev), GFP_KERNEL);
 	if (!audio_dev)
 		return -ENOMEM;
+
+	audio_dev_static = audio_dev;
 
 	audio_dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(audio_dev->clk)) {
@@ -565,24 +565,15 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 		return PTR_ERR(audio_dev->clk);
 	}
 
-	audio_dev_static = audio_dev;
-
-	mem_resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, mem_resource);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base)) {
-		dev_err(&pdev->dev, "devm_ioremap_resource failed.");
+		dev_err(&pdev->dev,
+			"devm_platform_get_and_ioremap_resource failed.");
 		return PTR_ERR(base);
 	}
 	audio_dev->i2s_base_addr = base;
 
-	addr = of_get_address(pdev->dev.of_node, 0, NULL, NULL);
-	if (!addr) {
-		dev_err(&pdev->dev, "could not get DMA-register address\n");
-		return -EINVAL;
-	}
-
-	dma_base = be32_to_cpup(addr);
-	audio_dev->fifo_dma_addr = dma_base + BCM2835_I2S_FIFO_A_REG;
+	audio_dev->fifo_dma_addr = res->start + BCM2835_I2S_FIFO_A_REG;
 	audio_dev->addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	audio_dev->dma_burst_size = 2;
 	audio_dev->dev = &pdev->dev;
