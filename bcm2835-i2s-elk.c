@@ -275,32 +275,20 @@ static int bcm2835_i2s_dma_setup(struct audio_evl_dev *audio_dev)
 {
 	struct device *dev = (struct device *)audio_dev->dev;
 
-	audio_dev->dma_tx = dma_request_slave_channel(dev, "tx");
-	if (!audio_dev->dma_tx) {
+	audio_dev->dma_tx = dma_request_chan(dev, "tx");
+	if (IS_ERR(audio_dev->dma_tx)) {
+		audio_dev->dma_tx = NULL;
 		return -ENODEV;
 	}
-	/*
-	if (bcm2835_dma_alloc_evl_resources(audio_dev->dma_tx,
-		DMA_MEM_TO_DEV)) {
-		printk(KERN_INFO "Failed to allocate EVL \
-		resources for dma tx\n");
-		return -1;
-	}
-	*/
-	audio_dev->dma_rx = dma_request_slave_channel(dev, "rx");
-	if (!audio_dev->dma_rx) {
+
+	audio_dev->dma_rx = dma_request_chan(dev, "rx");
+	if (IS_ERR(audio_dev->dma_rx)) {
+		audio_dev->dma_rx = NULL;
 		dma_release_channel(audio_dev->dma_tx);
 		audio_dev->dma_tx = NULL;
 		return -ENODEV;
 	}
-	/*
-	if (bcm2835_dma_alloc_evl_resources(audio_dev->dma_rx,
-		DMA_DEV_TO_MEM)) {
-		printk(KERN_INFO "Failed to allocate EVL \
-		resources for dma rx\n");
-		return -1;
-	}
-	*/
+
 	printk(KERN_INFO "bcm2835-i2s: dma setup successful.\n");
 	return 0;
 }
