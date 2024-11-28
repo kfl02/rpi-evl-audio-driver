@@ -534,12 +534,16 @@ int bcm2835_i2s_exit(void)
 		 failed\n");
 		return ret;
 	}
+	dmaengine_synchronize(audio_dev->dma_tx);
+
 	ret = dmaengine_terminate_async(audio_dev->dma_rx);
 	if (ret < 0) {
 		printk(KERN_ERR "bcm2835-i2s: dmaengine_terminate_async \
 		 failed\n");
 		return ret;
 	}
+	dmaengine_synchronize(audio_dev->dma_rx);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bcm2835_i2s_exit);
