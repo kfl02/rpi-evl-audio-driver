@@ -95,6 +95,8 @@ struct audio_evl_dev {
 	struct dma_chan *dma_rx;
 	struct dma_async_tx_descriptor *tx_desc;
 	struct dma_async_tx_descriptor *rx_desc;
+	dma_cookie_t dma_tx_cookie;
+	dma_cookie_t dma_rx_cookie;
 	dma_addr_t fifo_dma_addr;
 	unsigned addr_width;
 	unsigned dma_burst_size;

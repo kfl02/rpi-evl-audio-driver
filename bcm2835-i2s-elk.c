@@ -135,6 +135,21 @@ static void bcm2835_i2s_dma_callback(void *data)
 	int i;
 	uint32_t val;
 	struct audio_evl_dev *audio_dev = data;
+	enum dma_status status;
+	struct dma_tx_state dma_state;
+
+	status = dmaengine_tx_status(audio_dev->dma_tx,
+				     audio_dev->dma_tx_cookie, &dma_state);
+	if (status == DMA_ERROR) {
+		printk(KERN_INFO "bcm2835-i2s: DMA TX status: %d (%u %u)\n",
+		       status, dma_state.residue, dma_state.in_flight_bytes);
+	}
+	status = dmaengine_tx_status(audio_dev->dma_rx,
+				     audio_dev->dma_rx_cookie, &dma_state);
+	if (status == DMA_ERROR) {
+		printk(KERN_INFO "bcm2835-i2s: DMA TX status: %d (%u %u)\n",
+		       status, dma_state.residue, dma_state.in_flight_bytes);
+	}
 
 	audio_dev->kinterrupts++;
 	audio_dev->buffer_idx = ~(audio_dev->buffer_idx) & 0x1;
@@ -210,35 +225,50 @@ bcm2835_i2s_dma_prepare_cyclic(struct audio_evl_dev *audio_dev,
 
 static int bcm2835_i2s_dma_prepare(struct audio_evl_dev *audio_dev)
 {
-	int err;
+	int ret;
+
 	audio_dev->tx_desc =
 		bcm2835_i2s_dma_prepare_cyclic(audio_dev, DMA_MEM_TO_DEV);
 	if (!audio_dev->tx_desc) {
 		dev_err(audio_dev->dev, "failed to get DMA TX descriptor\n");
-		err = -EBUSY;
-		return err;
+		ret = -EBUSY;
+		return ret;
 	}
 
 	audio_dev->rx_desc =
 		bcm2835_i2s_dma_prepare_cyclic(audio_dev, DMA_DEV_TO_MEM);
 	if (!audio_dev->rx_desc) {
 		dev_err(audio_dev->dev, "failed to get DMA RX descriptor\n");
-		err = -EBUSY;
+		ret = -EBUSY;
 		dmaengine_terminate_async(audio_dev->dma_tx);
-		return err;
+		return ret;
 	}
 	audio_dev->rx_desc->callback = bcm2835_i2s_dma_callback;
 	audio_dev->rx_desc->callback_param = audio_dev;
 	return 0;
 }
 
-static void bcm2835_i2s_submit_dma(struct audio_evl_dev *audio_dev)
+static int bcm2835_i2s_submit_dma(struct audio_evl_dev *audio_dev)
 {
-	dmaengine_submit(audio_dev->rx_desc);
-	dmaengine_submit(audio_dev->tx_desc);
+	int ret;
+
+	audio_dev->dma_rx_cookie = dmaengine_submit(audio_dev->rx_desc);
+	ret = dma_submit_error(audio_dev->dma_rx_cookie);
+	if (ret) {
+		dev_err(audio_dev->dev, "rx dmaengine_submit failed\n");
+		return -EIO;
+	}
+
+	audio_dev->dma_tx_cookie = dmaengine_submit(audio_dev->tx_desc);
+	ret = dma_submit_error(audio_dev->dma_tx_cookie);
+	if (ret) {
+		dev_err(audio_dev->dev, "tx dmaengine_submit failed\n");
+		return -EIO;
+	}
 
 	dma_async_issue_pending(audio_dev->dma_rx);
 	dma_async_issue_pending(audio_dev->dma_tx);
+	return 0;
 }
 
 static int bcm2835_i2s_dma_setup(struct audio_evl_dev *audio_dev)
@@ -489,7 +519,11 @@ int bcm2835_i2s_buffers_setup(int audio_buffer_size, int audio_channels)
 		rpi_reg_write(audio_dev->i2s_base_addr, BCM2835_I2S_FIFO_A_REG,
 			      0);
 
-	bcm2835_i2s_submit_dma(audio_dev);
+	ret = bcm2835_i2s_submit_dma(audio_dev);
+	if (ret) {
+		printk(KERN_ERR "bcm2835-i2s: submit_dma failed\n");
+		return ret;
+	}
 
 	return 0;
 }
