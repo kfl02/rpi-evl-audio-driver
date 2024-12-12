@@ -3,9 +3,9 @@
  * @brief The PCM1863 codec driver for ELK  PI. A lot of stuff is hardcoded for
  *	now, idea is to make it runtime configurable ideally. This module is
  *	based on the mainline pcm3168a driver by Damien Horsley.
- * @copyright 2017-2019 Modern Ancient Instruments Networked AB, dba Elk,
- * Stockholm
+ * @copyright 2017-2024 ELK Audio AB, Stockholm
  */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
@@ -15,14 +15,12 @@
 
 #define PCM1863_I2C_BUS_NUM 1
 
-static struct i2c_board_info i2c_pcm1863_board_info[] =  {
-	{
-		I2C_BOARD_INFO("pcm-5122", 0x4a),
-	}
-};
+static struct i2c_board_info i2c_pcm1863_board_info[] = { {
+	I2C_BOARD_INFO("pcm-5122", 0x4a),
+} };
 
-static int pcm1863_reg_write(struct i2c_client *dev,
-				unsigned int reg, unsigned int val)
+static int pcm1863_reg_write(struct i2c_client *dev, unsigned int reg,
+			     unsigned int val)
 {
 	int ret;
 	char cmd[2];
@@ -49,25 +47,25 @@ static int pcm1863_config_codec(struct i2c_client *dev, bool enable_low_latency)
 	}
 
 	if (pcm1863_reg_write(dev, PCM186X_CLK_CTRL,
-				 PCM186X_CLK_CTRL_CLKDET_EN)) {
+			      PCM186X_CLK_CTRL_CLKDET_EN)) {
 		return ret;
 	}
 
 	if (pcm1863_reg_write(dev, PCM186X_PLL_CTRL,
-				 PCM186X_PLL_CTRL_REF_SEL)) {
+			      PCM186X_PLL_CTRL_REF_SEL)) {
 		return ret;
 	}
 
 	if (pcm1863_reg_write(dev, PCM186X_PCM_CFG,
-				 PCM186X_PCM_CFG_RX_WLEN_32 |
-				 PCM186X_PCM_CFG_TX_WLEN_32 |
-				 PCM186X_PCM_CFG_FMT_I2S)) {
+			      PCM186X_PCM_CFG_RX_WLEN_32 |
+				      PCM186X_PCM_CFG_TX_WLEN_32 |
+				      PCM186X_PCM_CFG_FMT_I2S)) {
 		return ret;
 	}
 
 	if (enable_low_latency) {
 		if (pcm1863_reg_write(dev, PCM186X_FILTER_MUTE_CTRL,
-					PCM186x_LOW_LATENCY_IIR)) {
+				      PCM186x_LOW_LATENCY_IIR)) {
 			return ret;
 		}
 	}
@@ -118,9 +116,8 @@ void pcm1863_exit(void)
 	printk(KERN_INFO "pcm1863-elk: module exit\n");
 }
 
-module_init(pcm1863_init)
-module_exit(pcm1863_exit)
+module_init(pcm1863_init) module_exit(pcm1863_exit)
 
-MODULE_DESCRIPTION("PCM5122 I2C codec driver for ELK Pi");
+	MODULE_DESCRIPTION("PCM5122 I2C codec driver for ELK Pi");
 MODULE_AUTHOR("Nitin Kulkarni (nitin@elk.audio)");
 MODULE_LICENSE("GPL");

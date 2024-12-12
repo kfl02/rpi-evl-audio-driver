@@ -2,9 +2,9 @@
 /*
  * @brief I2S module of the EVL audio driver.
  *	  A lot of stuff is based on the mainline I2S module by Florian Meier
- * @copyright 2017-2019 Modern Ancient Instruments Networked AB, dba Elk,
- * Stockholm
+ * @copyright 2017-2024 ELK Audio AB, Stockholm
  */
+
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -24,8 +24,8 @@
 #include "hifi-berry-config.h"
 #include "hifi-berry-pro-config.h"
 
-#define BCM2835_PCM_WORD_LEN 	32
-#define BCM2835_PCM_SLOTS	2
+#define BCM2835_PCM_WORD_LEN 32
+#define BCM2835_PCM_SLOTS 2
 
 static struct audio_evl_dev *audio_dev_static;
 
@@ -34,8 +34,7 @@ static int cv_gate_out[NUM_OF_CVGATE_OUTS] = { CVGATE_OUTS_LIST };
 static int cv_gate_in[NUM_OF_CVGATE_INS] = { CVGATE_INS_LIST };
 #endif
 
-void bcm2835_i2s_clear_fifos(struct audio_evl_dev *audio_dev,
-				    bool tx, bool rx)
+void bcm2835_i2s_clear_fifos(struct audio_evl_dev *audio_dev, bool tx, bool rx)
 {
 	uint32_t csreg, sync;
 	uint32_t i2s_active_state;
@@ -43,10 +42,10 @@ void bcm2835_i2s_clear_fifos(struct audio_evl_dev *audio_dev,
 	uint32_t clr;
 	int timeout = 1000;
 
-	off =  tx ? BCM2835_I2S_TXON : 0;
+	off = tx ? BCM2835_I2S_TXON : 0;
 	off |= rx ? BCM2835_I2S_RXON : 0;
 
-	clr =  tx ? BCM2835_I2S_TXCLR : 0;
+	clr = tx ? BCM2835_I2S_TXCLR : 0;
 	clr |= rx ? BCM2835_I2S_RXCLR : 0;
 
 	/* Backup the current state */
@@ -54,58 +53,61 @@ void bcm2835_i2s_clear_fifos(struct audio_evl_dev *audio_dev,
 	i2s_active_state = csreg & (BCM2835_I2S_RXON | BCM2835_I2S_TXON);
 
 	/* Stop I2S module */
-	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG, off, 0);
+	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG, off,
+			    0);
 
 	/*
 	 * Clear the FIFOs
 	 * Requires at least 2 PCM clock cycles to take effect
 	 */
-	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG, clr, clr);
+	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG, clr,
+			    clr);
 
 	rpi_reg_read(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG, &sync);
 	sync &= BCM2835_I2S_SYNC;
 
 	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG,
-			BCM2835_I2S_SYNC, ~sync);
+			    BCM2835_I2S_SYNC, ~sync);
 
 	/* Wait for the SYNC flag changing it's state */
 	while (--timeout) {
-		rpi_reg_read(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG, &csreg);
+		rpi_reg_read(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG,
+			     &csreg);
 		if ((csreg & BCM2835_I2S_SYNC) != sync)
 			break;
 	}
 
 	/* Restore I2S state */
 	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG,
-			BCM2835_I2S_RXON | BCM2835_I2S_TXON, i2s_active_state);
+			    BCM2835_I2S_RXON | BCM2835_I2S_TXON,
+			    i2s_active_state);
 }
 
 static void bcm2835_i2s_synch_frame(struct audio_evl_dev *audio_dev,
-					uint32_t mask)
+				    uint32_t mask)
 {
 	uint32_t val, discarded = 0;
-	int32_t tmp[9], samples[2] = {0xff, 0xff};
+	int32_t tmp[9], samples[2] = { 0xff, 0xff };
 
-	rpi_reg_update_bits(audio_dev->i2s_base_addr,
-		BCM2835_I2S_CS_A_REG, mask, mask);
+	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG,
+			    mask, mask);
 	/* Make sure channels are aligned in right order.
 	Last two channels from pcm3168 are always zero &
 	the probability of getting two successive zero values is nearly impossible */
 	while (samples[0] != 0 || samples[1] != 0) {
 		rpi_reg_read(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG,
-					&val);
+			     &val);
 		if (val & BCM2835_I2S_RXD) {
-			rpi_reg_write(audio_dev->i2s_base_addr, BCM2835_I2S_FIFO_A_REG,
-					0x00);
+			rpi_reg_write(audio_dev->i2s_base_addr,
+				      BCM2835_I2S_FIFO_A_REG, 0x00);
 			samples[1] = samples[0];
-			rpi_reg_read(audio_dev->i2s_base_addr, BCM2835_I2S_FIFO_A_REG,
-					&samples[0]);
-					tmp[discarded] = samples[0];
-					discarded++;
+			rpi_reg_read(audio_dev->i2s_base_addr,
+				     BCM2835_I2S_FIFO_A_REG, &samples[0]);
+			tmp[discarded] = samples[0];
+			discarded++;
 		}
 	}
-	printk(KERN_INFO "bcm2835-i2s: %d samples discarded\n",
-							discarded);
+	printk(KERN_INFO "bcm2835-i2s: %d samples discarded\n", discarded);
 }
 
 void bcm2835_i2s_start_stop(struct audio_evl_dev *audio_dev, int cmd)
@@ -119,11 +121,11 @@ void bcm2835_i2s_start_stop(struct audio_evl_dev *audio_dev, int cmd)
 			bcm2835_i2s_synch_frame(audio_dev, mask);
 		} else {
 			rpi_reg_update_bits(audio_dev->i2s_base_addr,
-				BCM2835_I2S_CS_A_REG, mask, mask);
+					    BCM2835_I2S_CS_A_REG, mask, mask);
 		}
 	} else {
 		rpi_reg_update_bits(audio_dev->i2s_base_addr,
-			BCM2835_I2S_CS_A_REG, mask, 0);
+				    BCM2835_I2S_CS_A_REG, mask, 0);
 	}
 }
 EXPORT_SYMBOL_GPL(bcm2835_i2s_start_stop);
@@ -133,6 +135,21 @@ static void bcm2835_i2s_dma_callback(void *data)
 	int i;
 	uint32_t val;
 	struct audio_evl_dev *audio_dev = data;
+	enum dma_status status;
+	struct dma_tx_state dma_state;
+
+	status = dmaengine_tx_status(audio_dev->dma_tx,
+				     audio_dev->dma_tx_cookie, &dma_state);
+	if (status == DMA_ERROR) {
+		printk(KERN_INFO "bcm2835-i2s: DMA TX status: %d (%u %u)\n",
+		       status, dma_state.residue, dma_state.in_flight_bytes);
+	}
+	status = dmaengine_tx_status(audio_dev->dma_rx,
+				     audio_dev->dma_rx_cookie, &dma_state);
+	if (status == DMA_ERROR) {
+		printk(KERN_INFO "bcm2835-i2s: DMA TX status: %d (%u %u)\n",
+		       status, dma_state.residue, dma_state.in_flight_bytes);
+	}
 
 	audio_dev->kinterrupts++;
 	audio_dev->buffer_idx = ~(audio_dev->buffer_idx) & 0x1;
@@ -141,13 +158,13 @@ static void bcm2835_i2s_dma_callback(void *data)
 #ifdef BCM2835_I2S_CVGATES_SUPPORT
 	if (audio_dev->cv_gate_enabled) {
 		for (i = 0; i < NUM_OF_CVGATE_OUTS; i++) {
-			val = (unsigned long) *audio_dev->buffer->cv_gate_out &
-			BIT(i);
+			val = (unsigned long)*audio_dev->buffer->cv_gate_out &
+			      BIT(i);
 			gpio_set_value(cv_gate_out[i], val);
 		}
 		val = 0;
 		for (i = 0; i < NUM_OF_CVGATE_INS; i++) {
-		val |= gpio_get_value(cv_gate_in[i]) << i;
+			val |= gpio_get_value(cv_gate_in[i]) << i;
 		}
 		*audio_dev->buffer->cv_gate_in = val;
 	}
@@ -156,11 +173,11 @@ static void bcm2835_i2s_dma_callback(void *data)
 
 static struct dma_async_tx_descriptor *
 bcm2835_i2s_dma_prepare_cyclic(struct audio_evl_dev *audio_dev,
-			enum dma_transfer_direction dir)
+			       enum dma_transfer_direction dir)
 {
 	struct dma_slave_config cfg;
 	struct dma_chan *chan;
-	int  flags;
+	int flags;
 	struct dma_async_tx_descriptor *desc;
 	struct audio_evl_buffers *audio_buffers = audio_dev->buffer;
 
@@ -179,8 +196,10 @@ bcm2835_i2s_dma_prepare_cyclic(struct audio_evl_dev *audio_dev,
 			return NULL;
 		}
 		desc = dmaengine_prep_dma_cyclic(chan,
-		audio_buffers->tx_phys_addr, audio_buffers->buffer_len,
-		audio_buffers->period_len, dir, flags);
+						 audio_buffers->tx_phys_addr,
+						 audio_buffers->buffer_len,
+						 audio_buffers->period_len, dir,
+						 flags);
 	} else if (dir == DMA_DEV_TO_MEM) {
 		cfg.src_addr = audio_dev->fifo_dma_addr;
 		cfg.src_addr_width = audio_dev->addr_width;
@@ -193,8 +212,10 @@ bcm2835_i2s_dma_prepare_cyclic(struct audio_evl_dev *audio_dev,
 			return NULL;
 		}
 		desc = dmaengine_prep_dma_cyclic(chan,
-		audio_buffers->rx_phys_addr, audio_buffers->buffer_len,
-		audio_buffers->period_len, dir, flags);
+						 audio_buffers->rx_phys_addr,
+						 audio_buffers->buffer_len,
+						 audio_buffers->period_len, dir,
+						 flags);
 	} else {
 		printk(KERN_ERR "bcm2835-i2s: unsupported dma direction\n");
 		return NULL;
@@ -204,67 +225,70 @@ bcm2835_i2s_dma_prepare_cyclic(struct audio_evl_dev *audio_dev,
 
 static int bcm2835_i2s_dma_prepare(struct audio_evl_dev *audio_dev)
 {
-	int err;
-	audio_dev->tx_desc = bcm2835_i2s_dma_prepare_cyclic(audio_dev, DMA_MEM_TO_DEV);
+	int ret;
+
+	audio_dev->tx_desc =
+		bcm2835_i2s_dma_prepare_cyclic(audio_dev, DMA_MEM_TO_DEV);
 	if (!audio_dev->tx_desc) {
-		dev_err(audio_dev->dev,
-			"failed to get DMA TX descriptor\n");
-		err = -EBUSY;
-		return err;
+		dev_err(audio_dev->dev, "failed to get DMA TX descriptor\n");
+		ret = -EBUSY;
+		return ret;
 	}
 
-	audio_dev->rx_desc = bcm2835_i2s_dma_prepare_cyclic(audio_dev, DMA_DEV_TO_MEM);
+	audio_dev->rx_desc =
+		bcm2835_i2s_dma_prepare_cyclic(audio_dev, DMA_DEV_TO_MEM);
 	if (!audio_dev->rx_desc) {
-		dev_err(audio_dev->dev,
-			"failed to get DMA RX descriptor\n");
-		err = -EBUSY;
+		dev_err(audio_dev->dev, "failed to get DMA RX descriptor\n");
+		ret = -EBUSY;
 		dmaengine_terminate_async(audio_dev->dma_tx);
-		return err;
+		return ret;
 	}
 	audio_dev->rx_desc->callback = bcm2835_i2s_dma_callback;
 	audio_dev->rx_desc->callback_param = audio_dev;
 	return 0;
 }
 
-static void bcm2835_i2s_submit_dma(struct audio_evl_dev *audio_dev)
+static int bcm2835_i2s_submit_dma(struct audio_evl_dev *audio_dev)
 {
-	dmaengine_submit(audio_dev->rx_desc);
-	dmaengine_submit(audio_dev->tx_desc);
+	int ret;
+
+	audio_dev->dma_rx_cookie = dmaengine_submit(audio_dev->rx_desc);
+	ret = dma_submit_error(audio_dev->dma_rx_cookie);
+	if (ret) {
+		dev_err(audio_dev->dev, "rx dmaengine_submit failed\n");
+		return -EIO;
+	}
+
+	audio_dev->dma_tx_cookie = dmaengine_submit(audio_dev->tx_desc);
+	ret = dma_submit_error(audio_dev->dma_tx_cookie);
+	if (ret) {
+		dev_err(audio_dev->dev, "tx dmaengine_submit failed\n");
+		return -EIO;
+	}
 
 	dma_async_issue_pending(audio_dev->dma_rx);
 	dma_async_issue_pending(audio_dev->dma_tx);
+	return 0;
 }
 
 static int bcm2835_i2s_dma_setup(struct audio_evl_dev *audio_dev)
 {
-	struct device *dev = (struct device *) audio_dev->dev;
+	struct device *dev = (struct device *)audio_dev->dev;
 
-	audio_dev->dma_tx = dma_request_slave_channel(dev, "tx");
-	if (!audio_dev->dma_tx) {
+	audio_dev->dma_tx = dma_request_chan(dev, "tx");
+	if (IS_ERR(audio_dev->dma_tx)) {
+		audio_dev->dma_tx = NULL;
 		return -ENODEV;
 	}
-	/*
-	if (bcm2835_dma_alloc_evl_resources(audio_dev->dma_tx,
-		DMA_MEM_TO_DEV)) {
-		printk(KERN_INFO "Failed to allocate EVL \
-		resources for dma tx\n");
-		return -1;
-	}
-	*/
-	audio_dev->dma_rx = dma_request_slave_channel(dev, "rx");
-	if (!audio_dev->dma_rx) {
+
+	audio_dev->dma_rx = dma_request_chan(dev, "rx");
+	if (IS_ERR(audio_dev->dma_rx)) {
+		audio_dev->dma_rx = NULL;
 		dma_release_channel(audio_dev->dma_tx);
 		audio_dev->dma_tx = NULL;
 		return -ENODEV;
 	}
-	/*
-	if (bcm2835_dma_alloc_evl_resources(audio_dev->dma_rx,
-		DMA_DEV_TO_MEM)) {
-		printk(KERN_INFO "Failed to allocate EVL \
-		resources for dma rx\n");
-		return -1;
-	}
-	*/
+
 	printk(KERN_INFO "bcm2835-i2s: dma setup successful.\n");
 	return 0;
 }
@@ -272,7 +296,7 @@ static int bcm2835_i2s_dma_setup(struct audio_evl_dev *audio_dev)
 #ifdef BCM2835_I2S_CVGATES_SUPPORT
 static int bcm2835_init_cv_gates(void)
 {
-	int  i, ret;
+	int i, ret;
 	for (i = 0; i < NUM_OF_CVGATE_OUTS; i++) {
 		ret = gpio_request(cv_gate_out[i], "cv_out_gate");
 		if (ret < 0) {
@@ -281,7 +305,8 @@ static int bcm2835_init_cv_gates(void)
 		}
 		ret = gpio_direction_output(cv_gate_out[i], 0);
 		if (ret < 0) {
-			printk(KERN_ERR "bcm2835-i2s: failed to set gpio dir\n");
+			printk(KERN_ERR
+			       "bcm2835-i2s: failed to set gpio dir\n");
 			return ret;
 		}
 	}
@@ -293,7 +318,8 @@ static int bcm2835_init_cv_gates(void)
 		}
 		ret = gpio_direction_input(cv_gate_in[i]);
 		if (ret < 0) {
-			printk(KERN_ERR "bcm2835-i2s: failed to set gpio dir\n");
+			printk(KERN_ERR
+			       "bcm2835-i2s: failed to set gpio dir\n");
 			return ret;
 		}
 	}
@@ -327,7 +353,7 @@ static void bcm2835_i2s_configure(struct audio_evl_dev *audio_dev)
 	slot_width = BCM2835_PCM_WORD_LEN;
 	frame_length = slots * slot_width;
 	format = BCM2835_I2S_CHEN | BCM2835_I2S_CHWEX;
-	format |= BCM2835_I2S_CHWID((data_length-8)&0xf);
+	format |= BCM2835_I2S_CHWID((data_length - 8) & 0xf);
 	framesync_length = frame_length / 2;
 	frame_start_falling_edge = false;
 	if (!strcmp(audio_dev->audio_hat, "hifi-berry")) {
@@ -335,7 +361,8 @@ static void bcm2835_i2s_configure(struct audio_evl_dev *audio_dev)
 		frame_sync_master = true;
 		bclk_rate = frame_length * HIFI_BERRY_SAMPLING_RATE;
 		if (clk_set_rate(audio_dev->clk, bclk_rate))
-			printk(KERN_ERR "bcm2835_i2s_configure: clk_set_rate failed\n");
+			printk(KERN_ERR
+			       "bcm2835_i2s_configure: clk_set_rate failed\n");
 
 		audio_dev->clk_rate = bclk_rate;
 		mode = BCM2835_I2S_CLKI;
@@ -356,7 +383,8 @@ static void bcm2835_i2s_configure(struct audio_evl_dev *audio_dev)
 	mode |= BCM2835_I2S_FSLEN(framesync_length);
 
 	if (!bit_clock_master)
-		mode |= BCM2835_I2S_CLKDIS | BCM2835_I2S_CLKM | BCM2835_I2S_CLKI;
+		mode |= BCM2835_I2S_CLKDIS | BCM2835_I2S_CLKM |
+			BCM2835_I2S_CLKI;
 
 	if (!frame_sync_master)
 		mode |= BCM2835_I2S_FSM;
@@ -366,42 +394,44 @@ static void bcm2835_i2s_configure(struct audio_evl_dev *audio_dev)
 
 	rpi_reg_write(audio_dev->i2s_base_addr, BCM2835_I2S_MODE_A_REG, mode);
 
-	rpi_reg_write(audio_dev->i2s_base_addr, BCM2835_I2S_RXC_A_REG, format
-		| BCM2835_I2S_CH1_POS(ch1_pos)
-		| BCM2835_I2S_CH2_POS(ch2_pos));
+	rpi_reg_write(audio_dev->i2s_base_addr, BCM2835_I2S_RXC_A_REG,
+		      format | BCM2835_I2S_CH1_POS(ch1_pos) |
+			      BCM2835_I2S_CH2_POS(ch2_pos));
 
-	rpi_reg_write(audio_dev->i2s_base_addr, BCM2835_I2S_TXC_A_REG, format
-		|BCM2835_I2S_CH1_POS(ch1_pos)
-		| BCM2835_I2S_CH2_POS(ch2_pos));
+	rpi_reg_write(audio_dev->i2s_base_addr, BCM2835_I2S_TXC_A_REG,
+		      format | BCM2835_I2S_CH1_POS(ch1_pos) |
+			      BCM2835_I2S_CH2_POS(ch2_pos));
 
 	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_MODE_A_REG,
-			BCM2835_I2S_CLKDIS, 0);
+			    BCM2835_I2S_CLKDIS, 0);
 	/* Setup the DMA parameters */
 	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG,
-			BCM2835_I2S_RXTHR(1)
-			| BCM2835_I2S_TXTHR(1)
-			| BCM2835_I2S_DMAEN, 0xffffffff);
+			    BCM2835_I2S_RXTHR(1) | BCM2835_I2S_TXTHR(1) |
+				    BCM2835_I2S_DMAEN,
+			    0xffffffff);
 
-	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_DREQ_A_REG,
-			  BCM2835_I2S_TX_PANIC(BCM2835_DMA_TX_PANIC_THR)
-			| BCM2835_I2S_RX_PANIC(BCM2835_DMA_RX_PANIC_THR)
-			| BCM2835_I2S_TX(BCM2835_DMA_THR_TX)
-			| BCM2835_I2S_RX(BCM2835_DMA_THR_RX), 0xffffffff);
+	rpi_reg_update_bits(
+		audio_dev->i2s_base_addr, BCM2835_I2S_DREQ_A_REG,
+		BCM2835_I2S_TX_PANIC(BCM2835_DMA_TX_PANIC_THR) |
+			BCM2835_I2S_RX_PANIC(BCM2835_DMA_RX_PANIC_THR) |
+			BCM2835_I2S_TX(BCM2835_DMA_THR_TX) |
+			BCM2835_I2S_RX(BCM2835_DMA_THR_RX),
+		0xffffffff);
 }
 
 static void bcm2835_i2s_enable(struct audio_evl_dev *audio_dev)
 {
 	/* Disable RAM STBY */
 	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG,
-			BCM2835_I2S_STBY, BCM2835_I2S_STBY);
+			    BCM2835_I2S_STBY, BCM2835_I2S_STBY);
 
 	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_INTEN_A_REG,
-			BCM2835_I2S_INT_TXERR | BCM2835_I2S_INT_RXERR,
-			BCM2835_I2S_INT_TXERR | BCM2835_I2S_INT_RXERR);
+			    BCM2835_I2S_INT_TXERR | BCM2835_I2S_INT_RXERR,
+			    BCM2835_I2S_INT_TXERR | BCM2835_I2S_INT_RXERR);
 
 	/* Enable PCM block */
 	rpi_reg_update_bits(audio_dev->i2s_base_addr, BCM2835_I2S_CS_A_REG,
-			BCM2835_I2S_EN, BCM2835_I2S_EN);
+			    BCM2835_I2S_EN, BCM2835_I2S_EN);
 }
 
 static void bcm2835_i2s_clear_regs(struct audio_evl_dev *audio_dev)
@@ -425,10 +455,10 @@ int bcm2835_i2s_init(char *audio_hat)
 
 	printk(KERN_INFO "Elk hat: %s\n", audio_dev->audio_hat);
 
-	audio_buffer->rx_buf = dma_alloc_coherent(audio_dev->dma_rx->device->dev,
-	RESERVED_BUFFER_SIZE_IN_PAGES * PAGE_SIZE,
-	&dummy_phys_addr,
-	GFP_KERNEL);
+	audio_buffer->rx_buf =
+		dma_alloc_coherent(audio_dev->dma_rx->device->dev,
+				   RESERVED_BUFFER_SIZE_IN_PAGES * PAGE_SIZE,
+				   &dummy_phys_addr, GFP_KERNEL);
 	if (!audio_buffer->rx_buf) {
 		printk(KERN_ERR "bcm2835-i2s: couldn't allocate dma mem\n");
 		return -ENOMEM;
@@ -450,16 +480,16 @@ int bcm2835_i2s_buffers_setup(int audio_buffer_size, int audio_channels)
 	struct audio_evl_buffers *audio_buffer = audio_dev->buffer;
 	dma_addr_t dummy_phys_addr = audio_buffer->rx_phys_addr;
 
-	audio_buffer->period_len = audio_buffer_size * audio_channels
-					 * sizeof(uint32_t);
+	audio_buffer->period_len =
+		audio_buffer_size * audio_channels * sizeof(uint32_t);
 	audio_buffer->buffer_len = 2 * audio_buffer->period_len;
-	audio_buffer->tx_buf = audio_buffer->rx_buf +
-			audio_buffer->buffer_len;
+	audio_buffer->tx_buf = audio_buffer->rx_buf + audio_buffer->buffer_len;
 	audio_buffer->tx_phys_addr = dummy_phys_addr + audio_buffer->buffer_len;
-	audio_buffer->cv_gate_out = audio_buffer->rx_buf +
-			audio_buffer->buffer_len * 2;
+	audio_buffer->cv_gate_out =
+		audio_buffer->rx_buf + audio_buffer->buffer_len * 2;
 	audio_buffer->cv_gate_in = audio_buffer->rx_buf +
-			audio_buffer->buffer_len * 2 + sizeof(uint32_t);
+				   audio_buffer->buffer_len * 2 +
+				   sizeof(uint32_t);
 	*audio_buffer->cv_gate_out = 0x0f;
 
 	ret = bcm2835_i2s_dma_prepare(audio_dev);
@@ -474,9 +504,14 @@ int bcm2835_i2s_buffers_setup(int audio_buffer_size, int audio_channels)
 	bcm2835_i2s_clear_fifos(audio_dev, true, true);
 
 	for (i = 0; i < (BCM2835_DMA_THR_TX + audio_channels); i++)
-		rpi_reg_write(audio_dev->i2s_base_addr, BCM2835_I2S_FIFO_A_REG, 0);
+		rpi_reg_write(audio_dev->i2s_base_addr, BCM2835_I2S_FIFO_A_REG,
+			      0);
 
-	bcm2835_i2s_submit_dma(audio_dev);
+	ret = bcm2835_i2s_submit_dma(audio_dev);
+	if (ret) {
+		printk(KERN_ERR "bcm2835-i2s: submit_dma failed\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -499,12 +534,16 @@ int bcm2835_i2s_exit(void)
 		 failed\n");
 		return ret;
 	}
+	dmaengine_synchronize(audio_dev->dma_tx);
+
 	ret = dmaengine_terminate_async(audio_dev->dma_rx);
 	if (ret < 0) {
 		printk(KERN_ERR "bcm2835-i2s: dmaengine_terminate_async \
 		 failed\n");
 		return ret;
 	}
+	dmaengine_synchronize(audio_dev->dma_rx);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bcm2835_i2s_exit);
@@ -513,16 +552,15 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 {
 	struct audio_evl_dev *audio_dev;
 	int ret = 0;
-	struct resource *mem_resource;
+	struct resource *res;
 	void __iomem *base;
-	const __be32 *addr;
-	dma_addr_t dma_base;
 	struct audio_evl_buffers *audio_buffer;
 
-	audio_dev = devm_kzalloc(&pdev->dev, sizeof(*audio_dev),
-			   GFP_KERNEL);
+	audio_dev = devm_kzalloc(&pdev->dev, sizeof(*audio_dev), GFP_KERNEL);
 	if (!audio_dev)
 		return -ENOMEM;
+
+	audio_dev_static = audio_dev;
 
 	audio_dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(audio_dev->clk)) {
@@ -531,24 +569,15 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 		return PTR_ERR(audio_dev->clk);
 	}
 
-	audio_dev_static = audio_dev;
-
-	mem_resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, mem_resource);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base)) {
-		dev_err(&pdev->dev, "devm_ioremap_resource failed.");
+		dev_err(&pdev->dev,
+			"devm_platform_get_and_ioremap_resource failed.");
 		return PTR_ERR(base);
 	}
 	audio_dev->i2s_base_addr = base;
 
-	addr = of_get_address(pdev->dev.of_node, 0, NULL, NULL);
-	if (!addr) {
-		dev_err(&pdev->dev, "could not get DMA-register address\n");
-		return -EINVAL;
-	}
-
-	dma_base = be32_to_cpup(addr);
-	audio_dev->fifo_dma_addr = dma_base + BCM2835_I2S_FIFO_A_REG;
+	audio_dev->fifo_dma_addr = res->start + BCM2835_I2S_FIFO_A_REG;
 	audio_dev->addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	audio_dev->dma_burst_size = 2;
 	audio_dev->dev = &pdev->dev;
@@ -557,8 +586,7 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 	if (bcm2835_i2s_dma_setup(audio_dev))
 		return -ENODEV;
 
-	audio_buffer = kcalloc(1, sizeof(struct audio_evl_buffers),
-		GFP_KERNEL);
+	audio_buffer = kcalloc(1, sizeof(struct audio_evl_buffers), GFP_KERNEL);
 
 	if (!audio_buffer) {
 		dev_err(&pdev->dev, "couldn't allocate audio_buffer\n");
@@ -571,10 +599,9 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 static int bcm2835_i2s_remove(struct platform_device *pdev)
 {
 	struct audio_evl_dev *audio_dev = audio_dev_static;
-	struct audio_evl_buffers *audio_buffers =
-					audio_dev_static->buffer;
+	struct audio_evl_buffers *audio_buffers = audio_dev_static->buffer;
 
-/*
+	/*
 	if (bcm2835_dma_free_evl_resources(audio_dev->dma_tx,
 				DMA_MEM_TO_DEV)) {
 		printk(KERN_INFO "Failed to free evl dma resources\n");
@@ -585,9 +612,9 @@ static int bcm2835_i2s_remove(struct platform_device *pdev)
 	}
 */
 	dma_free_coherent(audio_dev->dma_rx->device->dev,
-				RESERVED_BUFFER_SIZE_IN_PAGES * PAGE_SIZE,
-				audio_dev->buffer->rx_buf,
-				audio_dev->buffer->rx_phys_addr);
+			  RESERVED_BUFFER_SIZE_IN_PAGES * PAGE_SIZE,
+			  audio_dev->buffer->rx_buf,
+			  audio_dev->buffer->rx_phys_addr);
 	dma_release_channel(audio_dev->dma_tx);
 	dma_release_channel(audio_dev->dma_rx);
 	kfree(audio_buffers);
@@ -602,7 +629,9 @@ static int bcm2835_i2s_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id bcm2835_i2s_of_match[] = {
-	{ .compatible = "brcm,bcm2835-i2s", },
+	{
+		.compatible = "brcm,bcm2835-i2s",
+	},
 	{},
 };
 
