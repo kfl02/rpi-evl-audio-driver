@@ -346,7 +346,6 @@ static void bcm2835_i2s_configure(struct audio_evl_dev *audio_dev)
 	unsigned int mode = 0, format = 0;
 	bool bit_clock_master = false;
 	bool frame_sync_master = false;
-	bool frame_start_falling_edge = true;
 
 	data_length = BCM2835_PCM_WORD_LEN;
 	slots = BCM2835_PCM_SLOTS;
@@ -355,7 +354,7 @@ static void bcm2835_i2s_configure(struct audio_evl_dev *audio_dev)
 	format = BCM2835_I2S_CHEN | BCM2835_I2S_CHWEX;
 	format |= BCM2835_I2S_CHWID((data_length - 8) & 0xf);
 	framesync_length = frame_length / 2;
-	frame_start_falling_edge = false;
+
 	if (!strcmp(audio_dev->audio_hat, "hifi-berry")) {
 		bit_clock_master = true;
 		frame_sync_master = true;
@@ -389,8 +388,8 @@ static void bcm2835_i2s_configure(struct audio_evl_dev *audio_dev)
 	if (!frame_sync_master)
 		mode |= BCM2835_I2S_FSM;
 
-	if (frame_start_falling_edge)
-		mode |= BCM2835_I2S_FSI;
+	/* Invert frame sync to have channel 0 (left) with low FS signal */
+	mode |= BCM2835_I2S_FSI;
 
 	rpi_reg_write(audio_dev->i2s_base_addr, BCM2835_I2S_MODE_A_REG, mode);
 
