@@ -8,7 +8,10 @@
 
 #include <linux/io.h>
 #include <linux/ioctl.h>
+#include <linux/dmaengine.h>
 #include <evl/flag.h>
+
+#define GPIO_CHIP_NAME "pinctrl-bcm2711"
 
 #define EVL_SUBCLASS_GPIO 0
 #define DEVICE_NAME "audio_evl"

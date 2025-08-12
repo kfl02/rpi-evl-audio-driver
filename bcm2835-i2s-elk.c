@@ -14,7 +14,6 @@
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <asm/io.h>
-#include <linux/gpio.h>
 #include <linux/clk.h>
 
 #include "pcm3168a-elk.h"
@@ -30,8 +29,13 @@
 static struct audio_evl_dev *audio_dev_static;
 
 #ifdef BCM2835_I2S_CVGATES_SUPPORT
-static int cv_gate_out[NUM_OF_CVGATE_OUTS] = { CVGATE_OUTS_LIST };
-static int cv_gate_in[NUM_OF_CVGATE_INS] = { CVGATE_INS_LIST };
+
+#include <linux/gpio/machine.h>
+#include <linux/gpio/consumer.h>
+
+static struct gpio_desc* cv_gate_out[NUM_OF_CVGATE_OUTS] = { 0 };
+static struct gpio_desc* cv_gate_in[NUM_OF_CVGATE_INS] = { 0 };
+
 #endif
 
 void bcm2835_i2s_clear_fifos(struct audio_evl_dev *audio_dev, bool tx, bool rx)
@@ -132,8 +136,6 @@ EXPORT_SYMBOL_GPL(bcm2835_i2s_start_stop);
 
 static void bcm2835_i2s_dma_callback(void *data)
 {
-	int i;
-	uint32_t val;
 	struct audio_evl_dev *audio_dev = data;
 	enum dma_status status;
 	struct dma_tx_state dma_state;
@@ -157,16 +159,21 @@ static void bcm2835_i2s_dma_callback(void *data)
 	evl_raise_flag(&audio_dev->event_flag);
 #ifdef BCM2835_I2S_CVGATES_SUPPORT
 	if (audio_dev->cv_gate_enabled) {
-		for (i = 0; i < NUM_OF_CVGATE_OUTS; i++) {
-			val = (unsigned long)*audio_dev->buffer->cv_gate_out &
-			      BIT(i);
-			gpio_set_value(cv_gate_out[i], val);
+		for (size_t i = 0; i < NUM_OF_CVGATE_OUTS; i++) {
+			if((*audio_dev->buffer->cv_gate_out & (1U << i)) != 0)
+				gpiod_set_value(cv_gate_out[i], 1);
+			else
+				gpiod_set_value(cv_gate_out[i], 0);
 		}
-		val = 0;
-		for (i = 0; i < NUM_OF_CVGATE_INS; i++) {
-			val |= gpio_get_value(cv_gate_in[i]) << i;
+
+		uint32_t cv_gate_in_val = 0;
+
+		for (size_t i = 0; i < NUM_OF_CVGATE_INS; i++) {
+			if(gpiod_get_value(cv_gate_in[i]) != 0)
+				cv_gate_in_val |= 1U << i;
 		}
-		*audio_dev->buffer->cv_gate_in = val;
+
+		*audio_dev->buffer->cv_gate_in = cv_gate_in_val;
 	}
 #endif
 }
@@ -296,44 +303,82 @@ static int bcm2835_i2s_dma_setup(struct audio_evl_dev *audio_dev)
 #ifdef BCM2835_I2S_CVGATES_SUPPORT
 static int bcm2835_init_cv_gates(void)
 {
-	int i, ret;
-	for (i = 0; i < NUM_OF_CVGATE_OUTS; i++) {
-		ret = gpio_request(cv_gate_out[i], "cv_out_gate");
-		if (ret < 0) {
-			printk(KERN_ERR "bcm2835-i2s: failed to get cv out\n");
-			return ret;
+	static const char* const cv_gate_out_names[NUM_OF_CVGATE_OUTS] =
+		{ CVGATE_OUTS_NAMES_LIST };
+	static const char* const cv_gate_in_names[NUM_OF_CVGATE_INS] =
+		{ CVGATE_INS_NAMES_LIST };
+
+	static struct gpiod_lookup_table cv_table = {
+		.dev_id = NULL,
+		.table = {
+			GPIO_LOOKUP(GPIO_CHIP_NAME,
+				    CVGATE_OUT1_PIN,
+				    CVGATE_OUT1_PIN_NAME,
+				    GPIO_ACTIVE_HIGH),
+			GPIO_LOOKUP(GPIO_CHIP_NAME,
+				    CVGATE_OUT2_PIN,
+				    CVGATE_OUT2_PIN_NAME,
+				    GPIO_ACTIVE_HIGH),
+			GPIO_LOOKUP(GPIO_CHIP_NAME,
+				    CVGATE_OUT3_PIN,
+				    CVGATE_OUT3_PIN_NAME,
+				    GPIO_ACTIVE_HIGH),
+			GPIO_LOOKUP(GPIO_CHIP_NAME,
+				    CVGATE_OUT4_PIN,
+				    CVGATE_OUT4_PIN_NAME,
+				    GPIO_ACTIVE_HIGH),
+			GPIO_LOOKUP(GPIO_CHIP_NAME,
+				    CVGATE_IN1_PIN,
+				    CVGATE_IN1_PIN_NAME,
+				    GPIO_ACTIVE_HIGH),
+			GPIO_LOOKUP(GPIO_CHIP_NAME,
+				    CVGATE_IN2_PIN,
+				    CVGATE_IN2_PIN_NAME,
+				    GPIO_ACTIVE_HIGH),
+			{}
 		}
-		ret = gpio_direction_output(cv_gate_out[i], 0);
-		if (ret < 0) {
-			printk(KERN_ERR
-			       "bcm2835-i2s: failed to set gpio dir\n");
-			return ret;
+	};
+
+	gpiod_add_lookup_table(&cv_table);
+
+	for (size_t i = 0; i < NUM_OF_CVGATE_OUTS; i++) {
+		cv_gate_out[i] = gpiod_get(NULL,
+					   cv_gate_out_names[i],
+					   GPIOD_OUT_HIGH);
+
+		if (IS_ERR(cv_gate_out[i])) {
+			printk(KERN_ERR "bcm2835-i2s: failed to get %s: %pe\n",
+			       cv_gate_out_names[i],
+			       cv_gate_out[i]);
+			gpiod_remove_lookup_table(&cv_table);
+			return -1;
 		}
 	}
-	for (i = 0; i < NUM_OF_CVGATE_INS; i++) {
-		ret = gpio_request(cv_gate_in[i], "cv_in_gate");
-		if (ret < 0) {
-			printk(KERN_ERR "bcm2835-i2s: failed to get cv out\n");
-			return ret;
-		}
-		ret = gpio_direction_input(cv_gate_in[i]);
-		if (ret < 0) {
-			printk(KERN_ERR
-			       "bcm2835-i2s: failed to set gpio dir\n");
-			return ret;
+
+	for (size_t i = 0; i < NUM_OF_CVGATE_INS; i++) {
+		cv_gate_in[i] = gpiod_get(NULL,
+					  cv_gate_in_names[i],
+					  GPIOD_IN);
+
+		if (IS_ERR(cv_gate_in[i])) {
+			printk(KERN_ERR "bcm2835-i2s: failed to get %s: %pe\n",
+			       cv_gate_in_names[i],
+			       cv_gate_in[i]);
+			gpiod_remove_lookup_table(&cv_table);
+			return -1;
 		}
 	}
-	return ret;
+
+	return 0;
 }
 
 static void bcm2835_free_cv_gates(void)
 {
-	int i;
-	for (i = 0; i < NUM_OF_CVGATE_OUTS; i++)
-		gpio_free(cv_gate_out[i]);
+	for (size_t i = 0; i < NUM_OF_CVGATE_OUTS; i++)
+		gpiod_put(cv_gate_out[i]);
 
-	for (i = 0; i < NUM_OF_CVGATE_INS; i++)
-		gpio_free(cv_gate_in[i]);
+	for (size_t i = 0; i < NUM_OF_CVGATE_INS; i++)
+		gpiod_put(cv_gate_in[i]);
 }
 #endif
 
@@ -465,8 +510,14 @@ int bcm2835_i2s_init(char *audio_hat)
 	audio_buffer->rx_phys_addr = dummy_phys_addr;
 
 	if (!strcmp(audio_dev->audio_hat, "elk-pi")) {
-		audio_dev->cv_gate_enabled = true;
-		bcm2835_init_cv_gates();
+#ifdef BCM2835_I2S_CVGATES_SUPPORT
+		if (bcm2835_init_cv_gates() == 0) {
+			printk(KERN_INFO "bcm2835-i2s: CV gates enabled\n");
+			audio_dev->cv_gate_enabled = true;
+		} else {
+			printk(KERN_INFO "bcm2835-i2s: CV gates disabled\n");
+		}
+#endif
 	}
 	return 0;
 }

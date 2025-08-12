@@ -10,13 +10,21 @@
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 
 #include "pcm3168a-elk.h"
+#include "rpi-audio-evl.h"
+
+#define PCM3168A_I2C_BUS_NUM 1
 
 #define PCM3168A_CODEC_RST_PIN 16
+#define PCM3168A_CODEC_RST_PIN_NAME "codec_rst"
 #define PCM3168A_CPLD_RST_PIN 4
-#define PCM3168A_I2C_BUS_NUM 1
+#define PCM3168A_CPLD_RST_PIN_NAME "cpld_rst"
+
+static struct gpio_desc *gpio_codec_rst = NULL;
+static struct gpio_desc *gpio_cpld_rst = NULL;
 
 /* generated with si5351 tool to generate 24.576 Mhz clk */
 static uint8_t clkgen_reg_val_lookup[CLKGEN_NUM_OF_REGS][2] = {
@@ -153,38 +161,79 @@ static int pcm3168a_config_codec(struct i2c_client *i2c_client_dev)
 
 int pcm3168a_codec_init(void)
 {
-	int ret;
+	static struct gpiod_lookup_table gpios_table = {
+		.dev_id = NULL,
+		.table = {
+			GPIO_LOOKUP(GPIO_CHIP_NAME,
+				    PCM3168A_CODEC_RST_PIN,
+				    PCM3168A_CODEC_RST_PIN_NAME,
+				    GPIO_ACTIVE_HIGH),
+			GPIO_LOOKUP(GPIO_CHIP_NAME,
+				    PCM3168A_CPLD_RST_PIN,
+				    PCM3168A_CPLD_RST_PIN_NAME,
+				    GPIO_ACTIVE_HIGH),
+			{}
+		}
+	};
 	struct i2c_adapter *adapter = i2c_get_adapter(PCM3168A_I2C_BUS_NUM);
 	struct i2c_client *client =
 		i2c_new_client_device(adapter, i2c_clkgen_board_info);
 
-	ret = gpio_request(PCM3168A_CODEC_RST_PIN, "CODEC_RST");
-	if (ret < 0) {
-		printk(KERN_ERR "pcm3168a-elk: Failed to get CODEC_RST_GPIO\n");
-		return ret;
+	gpiod_add_lookup_table(&gpios_table);
+
+	gpio_codec_rst = gpiod_get(NULL,
+				   PCM3168A_CODEC_RST_PIN_NAME,
+				   GPIOD_OUT_HIGH);
+
+	if (IS_ERR(gpio_codec_rst)) {
+		printk(KERN_ERR "pcm3168a-elk: Failed to get "
+			        PCM3168A_CODEC_RST_PIN_NAME " gpio: %pe\n",
+		       gpio_codec_rst);
+		gpiod_remove_lookup_table(&gpios_table);
+		return -1;
 	}
-	ret = gpio_request(PCM3168A_CPLD_RST_PIN, "SIKA_RST");
-	if (ret < 0) {
-		printk(KERN_ERR "pcm3168a-elk: Failed to get CPLD_RST\n");
-		return ret;
+
+	gpio_cpld_rst = gpiod_get(NULL,
+				  PCM3168A_CPLD_RST_PIN_NAME,
+				  GPIOD_OUT_HIGH);
+
+	if (IS_ERR(gpio_cpld_rst)) {
+		printk(KERN_ERR "pcm3168a-elk: Failed to get "
+			        PCM3168A_CPLD_RST_PIN_NAME " gpio: %pe\n",
+		       gpio_cpld_rst);
+		gpiod_remove_lookup_table(&gpios_table);
+		return -1;
 	}
-	gpio_direction_output(PCM3168A_CPLD_RST_PIN, 1);
-	gpio_direction_output(PCM3168A_CODEC_RST_PIN, 0);
+
+	gpiod_remove_lookup_table(&gpios_table);
+
+	gpiod_set_value(gpio_cpld_rst, 1);
+	gpiod_set_value(gpio_codec_rst, 0);
+
 	if (pcm3168a_config_clk_gen(client))
 		printk(KERN_ERR "pcm3168a-elk: clk generator config failed\n");
+
 	msleep(200); // let the clk settle
-	gpio_direction_output(PCM3168A_CODEC_RST_PIN, 1);
+
+	gpiod_set_value(gpio_codec_rst, 1);
+
 	msleep(5);
+
 	i2c_unregister_device(client);
+
 	client = i2c_new_client_device(adapter, i2c_pcm3168a_board_info);
+
 	if (pcm3168a_config_codec(client)) {
 		printk(KERN_ERR "pcm31681-elk: config_codec failed\n");
 		return -1;
 	}
 	msleep(5);
-	gpio_direction_output(PCM3168A_CPLD_RST_PIN, 0);
+
+	gpiod_set_value(gpio_cpld_rst, 0);
+
 	i2c_unregister_device(client);
 	i2c_put_adapter(adapter);
+
 	printk(KERN_INFO "pcm31681-elk: codec configured\n");
 	return 0;
 }
@@ -193,8 +242,8 @@ EXPORT_SYMBOL_GPL(pcm3168a_codec_init);
 void pcm3168a_codec_exit(void)
 {
 	printk(KERN_INFO "pcm31681-elk: unregister i2c-client\n");
-	gpio_free(PCM3168A_CODEC_RST_PIN);
-	gpio_free(PCM3168A_CPLD_RST_PIN);
+	gpiod_put(gpio_cpld_rst);
+	gpiod_put(gpio_codec_rst);
 }
 EXPORT_SYMBOL_GPL(pcm3168a_codec_exit);
 
